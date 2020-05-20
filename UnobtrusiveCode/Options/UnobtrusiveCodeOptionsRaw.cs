@@ -21,9 +21,9 @@
 
         [Category("Dimming")]
         [DisplayName("Dimming opacity toggle enabled")]
-        [Description("Disable/Enable toggling of dimming opacity (default: true).")]
-        [DefaultValue(true)]
-        public bool DimmingOpacityTogglingEnabled { get; set; } = true;
+        [Description("Disable/Enable toggling of dimming opacity (default: false).")]
+        [DefaultValue(false)]
+        public bool DimmingOpacityTogglingEnabled { get; set; } = false;
 
         [Category("Dimming")]
         [DisplayName("Dimming opacity toggle key")]
