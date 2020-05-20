@@ -24,6 +24,7 @@
     public sealed class UnobtrusiveCodePackage : AsyncPackage
     {
         public const string ObtrusiveCodeClassification = "UnobtrusiveCode/ObtrusiveCode";
+        public const string ObtrusiveCodeClassificationHovered = "UnobtrusiveCode/ObtrusiveCode/Hovered";
         public const string LoggingFeatures = "UnobtrusiveCode/Logging";
         public const string CommentFeatures = "UnobtrusiveCode/Comment";
         public const string PackageGuidString = "377f72ad-751e-4b9a-863a-2cd3b7f0a034";

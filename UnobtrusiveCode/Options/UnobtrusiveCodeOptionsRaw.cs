@@ -20,6 +20,12 @@
         public double DimmingOpacity { get; set; } = 0.4;
 
         [Category("Dimming")]
+        [DisplayName("Dimming opacity when hovered")]
+        [Description("Dimming opacity when hovered (default: 0.8).")]
+        [DefaultValue(0.8)]
+        public double DimmingOpacityHovered { get; set; } = 0.8;
+
+        [Category("Dimming")]
         [DisplayName("Dimming opacity toggle enabled")]
         [Description("Disable/Enable toggling of dimming opacity (default: false).")]
         [DefaultValue(false)]

@@ -5,6 +5,7 @@
     using Microsoft.VisualStudio.Shell;
     using Microsoft.VisualStudio.Text;
     using Microsoft.VisualStudio.Text.Classification;
+    using Microsoft.VisualStudio.Text.Editor;
     using Microsoft.VisualStudio.Text.Tagging;
 
     using System;
@@ -22,6 +23,7 @@
 
     public class ObtrusiveCodeTagger : ITagger<IClassificationTag>, ITagger<IOutliningRegionTag>
     {
+        private readonly ITextView _view;
         private readonly ITextBuffer _buffer;
         private readonly IClassificationTypeRegistryService _classificationService;
         private readonly IEnumerable<IParser> _parsers;
@@ -29,23 +31,27 @@
         private ITextSnapshot _snapshot;
         private NormalizedSnapshotSpanCollection _spans;
 
-        private IEnumerable<ITagSpan<ITag>> _tags;
+        private IEnumerable<Tag> _tags;
 
         public ObtrusiveCodeTagger
             (
+            ITextView view,
             ITextBuffer buffer,
             IClassificationTypeRegistryService classificationService,
             IObtrusiveCodeSpanNormalizer normalizer,
             IEnumerable<IParser> parsers
             )
         {
+            _view = view;
             _buffer = buffer;
             _classificationService = classificationService;
             _parsers = parsers;
             _normalizer = normalizer;
             _snapshot = buffer.CurrentSnapshot;
             _spans = new NormalizedSnapshotSpanCollection();
-            _tags = Enumerable.Empty<ITagSpan<ITag>>();
+            _tags = Enumerable.Empty<Tag>();
+
+            _view.MouseHover += OnViewHover;
 
             Parse(CurrentOptions);
 
@@ -57,6 +63,53 @@
                 )
                 .Throttle(TimeSpan.FromMilliseconds(CurrentOptions.ParsingDelayMs))
                 .Subscribe(x => OnBufferChanged(x.EventArgs));
+        }
+
+        private void OnViewHover(object sender, MouseHoverEventArgs e)
+        {
+            var point = e.TextPosition.GetPoint(_buffer, PositionAffinity.Predecessor);
+
+            if (!point.HasValue || !CurrentOptions.IsDimmingEnabled())
+            {
+                return;
+            }
+
+            var pos = point.Value.Position;
+
+            var start = -1;
+            var end = -1;
+            foreach (var tag in _tags)
+            {
+                if (pos >= tag.VsTag.Span.Start &&
+                    pos <= tag.VsTag.Span.End)
+                {
+                    if (!tag.IsHovered)
+                    {
+                        tag.IsHovered = true;
+                        start = start == -1 || start > tag.VsTag.Span.Start
+                            ? tag.VsTag.Span.Start
+                            : start;
+                        end = end == -1 || end < tag.VsTag.Span.End
+                          ? tag.VsTag.Span.End
+                          : end;
+                    }
+                }
+                else if (tag.IsHovered)
+                {
+                    tag.IsHovered = false;
+                    start = start == -1 || start > tag.VsTag.Span.Start
+                                ? tag.VsTag.Span.Start
+                                : start;
+                    end = end == -1 || end < tag.VsTag.Span.End
+                      ? tag.VsTag.Span.End
+                      : end;
+                }
+            }
+
+            if (start > -1)
+            {
+                TagsChanged?.Invoke(null, new SnapshotSpanEventArgs(new SnapshotSpan(_snapshot, Span.FromBounds(start, end))));
+            }
         }
 
         public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
@@ -119,7 +172,21 @@
             int end = spans[spans.Count - 1].End.Position;
 
             return _tags
-                .Where(x => x.Span.End >= start && x.Span.Start <= end)
+                .Where(x => x.VsTag.Span.End >= start && x.VsTag.Span.Start <= end)
+                .Select(x =>
+                {
+                    if (x.IsHovered && CurrentOptions.IsDimmingEnabled())
+                    {
+                        if (x.VsTag is TagSpan<IClassificationTag> span)
+                        {
+                            var dimmingTagDefinition = new ClassificationTag(_classificationService.GetClassificationType(ObtrusiveCodeClassificationHovered));
+
+                            return new TagSpan<IClassificationTag>(span.Span, dimmingTagDefinition);
+                        }
+                    }
+
+                    return x.VsTag;
+                })
                 .OfType<ITagSpan<TTag>>()
                 .ToList();
         }
@@ -188,7 +255,7 @@
 
             if (changeStart <= changeEnd)
             {
-                var tags = new List<ITagSpan<ITag>>();
+                var tags = new List<Tag>();
 
                 if (options.IsOutliningEnabled())
                 {
@@ -196,7 +263,7 @@
 
                     var outliningTags = spans
                         .Where(x => x.AllowsOutlining)
-                        .Select(x => new TagSpan<IOutliningRegionTag>(x.Span, outliningTagDefinition));
+                        .Select(x => new Tag(new TagSpan<IOutliningRegionTag>(x.Span, outliningTagDefinition)));
 
                     tags.AddRange(outliningTags);
                 }
@@ -207,7 +274,7 @@
 
                     var dimmingTags = spans
                         .Where(x => x.AllowsDimming)
-                        .Select(x => new TagSpan<IClassificationTag>(x.Span, dimmingTagDefinition));
+                        .Select(x => new Tag(new TagSpan<IClassificationTag>(x.Span, dimmingTagDefinition)));
 
                     tags.AddRange(dimmingTags);
                 }
@@ -224,5 +291,15 @@
 
         IEnumerable<ITagSpan<IOutliningRegionTag>> ITagger<IOutliningRegionTag>.GetTags(NormalizedSnapshotSpanCollection spans)
             => GetTags<IOutliningRegionTag>(spans);
+
+        private class Tag
+        {
+            public Tag(ITagSpan<ITag> vsTag)
+                => VsTag = vsTag;
+
+            public ITagSpan<ITag> VsTag { get; }
+
+            public bool IsHovered { get; set; }
+        }
     }
 }

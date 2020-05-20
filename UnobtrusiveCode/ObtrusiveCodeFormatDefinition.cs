@@ -26,4 +26,24 @@
         [Name(ObtrusiveCodeClassification)]
         internal static ClassificationTypeDefinition ObtrusiveCodeTypeDefinition = null;
     }
+
+    [Export(typeof(EditorFormatDefinition))]
+    [ClassificationType(ClassificationTypeNames = ObtrusiveCodeClassificationHovered)]
+    [Name(ObtrusiveCodeClassificationHovered)]
+    [UserVisible(true)]
+    [Order(After = Priority.High)]
+    public class ObtrusiveCodeHoveredFormatDefinition : ClassificationFormatDefinition
+    {
+        public ObtrusiveCodeHoveredFormatDefinition()
+        {
+            ForegroundOpacity = CurrentOptions.DimmingOpacityHovered;
+            BackgroundOpacity = CurrentOptions.DimmingOpacityHovered;
+
+            DisplayName = ObtrusiveCodeClassificationHovered;
+        }
+
+        [Export]
+        [Name(ObtrusiveCodeClassificationHovered)]
+        internal static ClassificationTypeDefinition ObtrusiveCodeHoveredTypeDefinition = null;
+    }
 }

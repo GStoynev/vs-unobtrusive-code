@@ -22,6 +22,9 @@
         public double DimmingOpacity
             => _options.DimmingOpacity;
 
+        public double DimmingOpacityHovered
+            => _options.DimmingOpacityHovered;
+
         public bool IsDimmingOpacityTogglingEnabled
             => _options.DimmingOpacityTogglingEnabled;
 
